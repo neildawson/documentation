@@ -8,7 +8,8 @@ const url = 'https://raw.githubusercontent.com/vegaprotocol/protos/v0.50.1/swagg
 const notProposalTypes = ['closingTimestamp', 'enactmentTimestamp', 'validationTimestamp', 'title', 'type']
 
 const nameByType = {
-  newFreeform: 'New Freeform Proposal'
+  newFreeform: 'New Freeform Proposal',
+  updateNetworkParameter: 'Update a network parameter'
 }
 
 /**
@@ -27,6 +28,8 @@ function newProposal(changes, skeleton, type) {
   const proposal = {
     closingTimestamp: daysInTheFuture(19),
   }
+
+  // Freeform proposals don't get enacted, so they can't have this
   if (type !== 'newFreeform'){
     proposal.enactmentTimestamp = daysInTheFuture(20)
   }
@@ -62,8 +65,23 @@ function newFreeform(skeleton) {
   return result;
 }
 
+function updateNetworkParameter(skeleton) {
+  const result = {};
+  assert.ok(skeleton.properties.changes);
+  result.changes = {};
+
+  assert.ok(skeleton.properties.changes.properties.key);
+  result.changes.key = 'a.test.key' 
+
+  assert.ok(skeleton.properties.changes.properties.value);
+  result.changes.value = '100' 
+
+  return result
+}
+
 const ProposalGenerator = new Map([
-  ['newFreeform', newFreeform]
+  ['newFreeform', newFreeform],
+  ['updateNetworkParameter', updateNetworkParameter]
 ])
 
 
@@ -73,6 +91,8 @@ function parse(api) {
       if (ProposalGenerator.has(type)) {
           const changes = ProposalGenerator.get(type)(proposalTypes[type])
           newProposal(changes, api.definitions.vegaProposalTerms, type) 
+      } else {
+          // console.log('No generator for ' + type);
       }
   })
 }

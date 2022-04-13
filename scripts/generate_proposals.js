@@ -1,12 +1,21 @@
 const assert = require('assert').strict;
 const { addDays, format } = require('date-fns')
 const omit = require('lodash/omit');
+const sample = require('lodash/sample');
 const SwaggerParser = require("@apidevtools/swagger-parser");
 
 // Config
 const url = 'https://raw.githubusercontent.com/vegaprotocol/protos/v0.50.1/swagger/vega/api/v1/corestate.swagger.json';
-const notProposalTypes = ['closingTimestamp', 'enactmentTimestamp', 'validationTimestamp', 'title', 'type']
 
+// Input: Fields to remove from a specific place in the Swagger file
+const notProposalTypes = ['closingTimestamp', 'enactmentTimestamp', 'validationTimestamp', 'title', 'type']
+// Input: Ignore these types as they are not finished
+const excludeUnimplementedTypes = ['updateMarket'];
+
+// Seed data: Some valid network parameters
+const networkParameters = ['market.fee.factors.infrastructureFee', 'governance.proposal.asset.requiredMajority', 'governance.proposal.freeform.minVoterBalance']
+
+// Output: Used to put a nice title on the output
 const nameByType = {
   newFreeform: 'New Freeform Proposal',
   updateNetworkParameter: 'Update a network parameter'
@@ -18,7 +27,7 @@ const nameByType = {
  * @returns 
  */
 function daysInTheFuture(daysToAdd) {
-    return new addDays(Date.now(), daysToAdd).getTime()
+  return new addDays(Date.now(), daysToAdd).getTime()
 }
 
 function newProposal(changes, skeleton, type) {
@@ -38,9 +47,11 @@ function newProposal(changes, skeleton, type) {
 
   console.log(`\r\n## ${nameByType[type]}`);
   console.log(`\r\n### JSON`);
+  console.log('```json');
   console.dir(proposal, { depth: 20 });
+  console.log('```');
   console.log(`\r\n### Command line ready`);
-  console.dir(JSON.stringify({"proposalSubmission": { reference: 'A test', terms: proposal }}), { depth: 20 });
+  console.dir(JSON.stringify({"proposalSubmission": { reference: `test-${type}`, terms: proposal }}), { depth: 20 });
   console.groupEnd();
 }
 
@@ -71,29 +82,32 @@ function updateNetworkParameter(skeleton) {
   result.changes = {};
 
   assert.ok(skeleton.properties.changes.properties.key);
-  result.changes.key = 'a.test.key' 
+  result.changes.key = sample(networkParameters)
 
   assert.ok(skeleton.properties.changes.properties.value);
-  result.changes.value = '100' 
+  result.changes.value = Math.random().toString()
 
   return result
 }
 
 const ProposalGenerator = new Map([
   ['newFreeform', newFreeform],
-  ['updateNetworkParameter', updateNetworkParameter]
+  ['updateNetworkParameter', updateNetworkParameter],
 ])
 
 
 function parse(api) {
   const proposalTypes = omit(api.definitions.vegaProposalTerms.properties, notProposalTypes )
+
   Object.keys(proposalTypes).forEach(type => {
-      if (ProposalGenerator.has(type)) {
-          const changes = ProposalGenerator.get(type)(proposalTypes[type])
-          newProposal(changes, api.definitions.vegaProposalTerms, type) 
-      } else {
-          // console.log('No generator for ' + type);
-      }
+      if ( excludeUnimplementedTypes.indexOf(type) === -1) {
+        if (ProposalGenerator.has(type)) {
+            const changes = ProposalGenerator.get(type)(proposalTypes[type])
+            newProposal(changes, api.definitions.vegaProposalTerms, type) 
+        } else {
+            console.log('No generator for ' + type);
+        }
+    }
   })
 }
 

@@ -2,6 +2,7 @@ const sample = require('lodash/sample');
 const random = require('lodash/random');
 const sampleSize = require('lodash/sampleSize');
 const assert = require('assert').strict;
+const { inspect } = require('util');
 
 // Seed data: Some inspirational instrument names and corresponding codes
 const instruments = [
@@ -18,7 +19,7 @@ function generateOracleSpec(skeleton) {
   assert.equal(skeleton.properties.pubKeys.items.type, 'string', 'Oracle spec pubkeys used to be an array of strings')
   assert.equal(skeleton.properties.filters.type, 'array', 'Oracle spec filters')
 
-  return {
+  const spec = {
     pubKeys: [
         "0xab5c950b071684321d59360ccb924d9c5010b31abd6b4148206a57e73594abc9"
       ],
@@ -30,23 +31,73 @@ function generateOracleSpec(skeleton) {
           },
           conditions: [
             {
-              "operator": "OPERATOR_EQUALS",
-              "value": "1"
+              operator: "OPERATOR_EQUALS",
+              value: "1"
             }
           ]
         }
       ]
     }
+
+  spec[inspect.custom]= () => {
+    const splitDescription = skeleton.properties.filters.items.properties.conditions.description.split('\n');
+    const splitPubkeys = skeleton.properties.pubKeys.description.split('\n');
+    const splitFilters = skeleton.properties.filters.description.split('\n');
+   return `{
+    // ${splitPubkeys[0]}
+    // ${splitPubkeys[1]}
+    // ${splitPubkeys[2]} (${skeleton.properties.pubKeys.type} of ${skeleton.properties.pubKeys.items.type}s)
+    pubKeys: ${JSON.stringify(spec.pubKeys)} 
+      // ${splitFilters[0]}
+      // ${splitFilters[1]}
+      filters: [
+        {
+          // ${skeleton.properties.filters.items.properties.key.description}
+          key: {
+            // ${skeleton.properties.filters.items.properties.key.properties.name.description} (${skeleton.properties.filters.items.properties.key.properties.name.type})
+            name: "${spec.filters[0].key.name}",
+            // ${skeleton.properties.filters.items.properties.key.properties.type.description} (${skeleton.properties.filters.items.properties.key.properties.type.type})
+            type: "${spec.filters[0].key.type}",
+          }
+          // ${splitDescription[0]}
+          // ${splitDescription[1]}
+          conditions: [
+            // ${skeleton.properties.filters.items.properties.conditions.items.properties.operator.description} (${skeleton.properties.filters.items.properties.conditions.items.properties.operator.type})
+            operator: "${spec.filters[0].conditions[0].operator}",
+            // ${skeleton.properties.filters.items.properties.conditions.items.properties.value.description} (${skeleton.properties.filters.items.properties.conditions.items.properties.value.type})
+            value: "${spec.filters[0].conditions[0].value}",
+          ]
+        }
+      ]
+   }`}
+
+    return spec;
 }
 
 function generateOracleSpecBinding(skeleton) {
   assert.equal(skeleton.properties.settlementPriceProperty.type, 'string', 'Oracle spec binding: settlement price property changed format')
   assert.equal(skeleton.properties.tradingTerminationProperty.type, 'string', 'Oracle spec binding: trading termination property changed format')
 
-  return {
+  const binding = {
     settlementPriceProperty: "prices.AAPL.value",
     tradingTerminationProperty: "prices.AAPL.value"
   }
+
+  binding[inspect.custom]= () => {
+    // Brittle
+    const splitSettle = skeleton.properties.settlementPriceProperty.description.split('\n');
+   return `{
+      // ${splitSettle[0]}
+      // ${splitSettle[1]}
+      // ${splitSettle[2]}
+      // ${splitSettle[3]} (${skeleton.properties.settlementPriceProperty.type}) 
+      settlementPriceProperty: "${binding.settlementPriceProperty}",
+      // ${skeleton.properties.tradingTerminationProperty.title} (${skeleton.properties.tradingTerminationProperty.type}) 
+      tradingTerminationProperty: "${binding.tradingTerminationProperty}"
+    }`
+ }
+
+ return binding
 }
 
 
@@ -55,42 +106,88 @@ function generateInstrument(skeleton) {
   // This is tEuro
   const idForAnExistingVegaAsset = '8b52d4a3a4b0ffe733cddbc2b67be273816cfeb6ca4c8b339bac03ffba08e4e4'
 
-  const instrument = {};
   // The properties of an instrument
   assert.ok(skeleton.properties.name);
-  instrument.name = randomInstrument.name;
   assert.ok(skeleton.properties.code);
-  instrument.code = randomInstrument.code;
-  instrument.future = {};
-
   assert.ok(skeleton.properties.future.properties.settlementAsset);
-  instrument.future.settlementAsset = idForAnExistingVegaAsset;
-
   assert.ok(skeleton.properties.future.properties.quoteName);
-  instrument.future.quoteName = 'tEuro';
-
   assert.ok(skeleton.properties.future.properties.settlementPriceDecimals);
   assert.equal(skeleton.properties.future.properties.settlementPriceDecimals.type, 'integer');
-  instrument.future.settlementPriceDecimals = 5;
-
   assert.ok(skeleton.properties.future.properties.oracleSpecForSettlementPrice);
-  instrument.future.oracleSpecForSettlementPrice = generateOracleSpec(skeleton.properties.future.properties.oracleSpecForSettlementPrice);
-
   assert.ok(skeleton.properties.future.properties.oracleSpecForTradingTermination);
-  instrument.future.oracleSpecForTradingTermination = generateOracleSpec(skeleton.properties.future.properties.oracleSpecForSettlementPrice);
-
   assert.ok(skeleton.properties.future.properties.oracleSpecBinding);
-  instrument.future.oracleSpecBinding = generateOracleSpecBinding(skeleton.properties.future.properties.oracleSpecBinding);
+
+  const instrument = {
+    name: randomInstrument.name,
+    code: randomInstrument.code,
+    future: {
+      settlementAsset: idForAnExistingVegaAsset,
+      quoteName: 'tEuro',
+      settlementPriceDecimals: 5,
+      oracleSpecForSettlementPrice: generateOracleSpec(skeleton.properties.future.properties.oracleSpecForSettlementPrice),
+      oracleSpecForTradingTermination: generateOracleSpec(skeleton.properties.future.properties.oracleSpecForSettlementPrice),
+      oracleSpecBinding: generateOracleSpecBinding(skeleton.properties.future.properties.oracleSpecBinding)
+    }
+  }
+
+  instrument[inspect.custom]= () => {
+   return `{
+  // ${skeleton.properties.name.title}
+  name: "${instrument.name}",
+  // ${skeleton.properties.code.title}
+  code: "${instrument.code}",
+  // ${skeleton.properties.future.title}
+  future: {
+    // ${skeleton.properties.future.properties.settlementAsset.title} (${skeleton.properties.future.properties.settlementAsset.type})
+    settlementAsset: "${instrument.future.settlementAsset}",
+    // ${skeleton.properties.future.properties.quoteName.title} (${skeleton.properties.future.properties.quoteName.type})
+    quoteName: "${instrument.future.quoteName}",
+    // ${skeleton.properties.future.properties.settlementPriceDecimals.title} (${skeleton.properties.future.properties.settlementPriceDecimals.format} as ${skeleton.properties.future.properties.settlementPriceDecimals.type})
+    settlementPriceDecimals: ${instrument.future.settlementPriceDecimals},
+    // ${skeleton.properties.future.properties.oracleSpecForSettlementPrice.title} (${skeleton.properties.future.properties.oracleSpecForSettlementPrice.type})
+    oracleSpecForSettlementPrice: ${inspect(instrument.future.oracleSpecForSettlementPrice, {depth: 5})},
+    // ${skeleton.properties.future.properties.oracleSpecForTradingTermination.title} (${skeleton.properties.future.properties.oracleSpecForTradingTermination.type})
+    oracleSpecForTradingTermination: ${inspect(instrument.future.oracleSpecForTradingTermination, {depth: 5})},
+    // ${skeleton.properties.future.properties.oracleSpecBinding.title} (${skeleton.properties.future.properties.oracleSpecBinding.type})
+    oracleSpecBinding: ${inspect(instrument.future.oracleSpecBinding, {depth: 5})},
+    }
+}`
+  }
 
   return instrument
 }
 
-function generatePeggedOrder(side) {
-  return {
+function generatePeggedOrder(skeleton, side, customInspect = false) {
+  const order = {
     offset: random(1, 100).toString(),
-    proportion: random(1, 10).toString(),
+    proportion: random(1, 10),
     reference: side === 'sell' ? 'PEGGED_REFERENCE_BEST_ASK' : 'PEGGED_REFERENCE_BEST_BID'
   }
+
+  // This switch is used so we only output the docs strings on the first order to save some space
+  if (customInspect) {
+     order[inspect.custom]= () => {
+   return `  {
+      // ${skeleton.offset.title} (${skeleton.offset.type}) 
+      offset: "${order.offset}",
+      // ${skeleton.proportion.title} (${skeleton.proportion.format} as ${skeleton.proportion.type}) 
+      proportion: ${order.proportion},
+      // ${skeleton.reference.title} (${skeleton.reference.type}) 
+      reference: "${order.reference}",
+    }`
+ }
+} else {
+     order[inspect.custom]= () => {
+   return `   {
+      offset: "${order.offset}",
+      proportion: ${order.proportion},
+      reference: "${order.reference}",
+    }`
+ 
+  }
+  }
+
+ return order
 }
 
 function generatePeggedOrders(skeleton, side) {
@@ -101,10 +198,9 @@ function generatePeggedOrders(skeleton, side) {
   assert.equal(skeleton.items.properties.offset.type, 'string', 'Pegged orders offset used to be a string')
 
   let orders = [
-    generatePeggedOrder(side),
-    generatePeggedOrder(side),
-    generatePeggedOrder(side),
-    generatePeggedOrder(side)
+    generatePeggedOrder(skeleton.items.properties, side, true),
+    generatePeggedOrder(skeleton.items.properties, side),
+    generatePeggedOrder(skeleton.items.properties, side)
   ]
 
   return orders
@@ -125,12 +221,27 @@ function generateNewMarketCommitment(skeleton) {
   assert.equal(skeleton.properties.buys.items.properties.offset.type, 'string', 'Market offset used to be a string');
   assert.deepEqual(skeleton.properties.buys.items.properties.reference.enum, ['PEGGED_REFERENCE_UNSPECIFIED', 'PEGGED_REFERENCE_MID', 'PEGGED_REFERENCE_BEST_BID', 'PEGGED_REFERENCE_BEST_ASK'], 'Market commitment types changed');
 
-  return {
+  const commitment = {
     commitmentAmount: random(100000,10000000).toString(),
     fee: random(0.01, 0.9).toPrecision(2).toString(),
     buys: generatePeggedOrders(skeleton.properties.buys, 'buy'),
     sells: generatePeggedOrders(skeleton.properties.sells, 'sell')
   }
+
+  commitment[inspect.custom]= () => {
+   return `{
+  // ${skeleton.properties.commitmentAmount.title} (${skeleton.properties.commitmentAmount.type}) 
+  commitmentAmount: "${commitment.commitmentAmount}",
+  // ${skeleton.properties.fee.title} (${skeleton.properties.fee.format} as ${skeleton.properties.fee.type}) 
+  fee: ${commitment.fee},
+  // ${skeleton.properties.buys.title}
+  buys: ${inspect(commitment.buys, { depth: 20 })},
+  // ${skeleton.properties.buys.title}
+  sells: ${inspect(commitment.sells, { depth: 20 })},
+}}`
+ }
+
+  return commitment;
 }
 
 function generatePriceMonitoringParameters(skeleton) {
@@ -140,7 +251,7 @@ function generatePriceMonitoringParameters(skeleton) {
   assert.equal(skeleton.properties.triggers.items.properties.probability.type, 'string')
   assert.equal(skeleton.properties.triggers.items.properties.auctionExtension.format, 'int64')
 
-  return {
+  const params = {
     triggers: [
       {
         horizon: "43200",
@@ -149,6 +260,28 @@ function generatePriceMonitoringParameters(skeleton) {
       }
     ]
   }
+
+  params[inspect.custom]= () => {
+   const splitTitle = skeleton.properties.triggers.items.properties.auctionExtension.title.split('\n') 
+   return `{
+  // ${skeleton.properties.triggers.items.title}
+  triggers: [
+    {
+    // ${skeleton.properties.triggers.items.properties.horizon.title} (${skeleton.properties.triggers.items.properties.horizon.format} as ${skeleton.properties.triggers.items.properties.horizon.type})
+    horizon: "${params.triggers[0].horizon}",
+    // ${skeleton.properties.triggers.items.properties.probability.title} (${skeleton.properties.triggers.items.properties.probability.type})
+    probability: "${params.triggers[0].probability}",
+    // ${splitTitle[0]}
+    // ${splitTitle[1]}
+    // ${splitTitle[2]} (${skeleton.properties.triggers.items.properties.auctionExtension.format} as ${skeleton.properties.triggers.items.properties.auctionExtension.type})
+    auctionExtension: "${params.triggers[0].auctionExtension}",
+    }
+]
+}`
+  }
+
+  return params
+
 }
 
 function generateLiquidityMonitoringParameters(skeleton) {
@@ -159,7 +292,7 @@ function generateLiquidityMonitoringParameters(skeleton) {
   assert.equal(skeleton.properties.triggeringRatio.type, 'number')
   assert.equal(skeleton.properties.auctionExtension.type, 'string')
 
-  return {
+  const params = {
     targetStakeParameters: {
       timeWindow: '3600',
       scalingFactor: 10
@@ -167,6 +300,25 @@ function generateLiquidityMonitoringParameters(skeleton) {
     triggeringRatio: 0.7,
     auctionExtension: '1'
   }
+
+
+  params[inspect.custom]= () => {
+   return `{
+  // ${skeleton.properties.targetStakeParameters.title}
+  targetStakeParameters: {
+    // ${skeleton.properties.targetStakeParameters.properties.timeWindow.title} (${skeleton.properties.targetStakeParameters.properties.timeWindow.type})
+    timeWindow: "${params.targetStakeParameters.timeWindow}",
+    // ${skeleton.properties.targetStakeParameters.properties.scalingFactor.title} (${skeleton.properties.targetStakeParameters.properties.scalingFactor.type})
+    scalingFactor: ${params.targetStakeParameters.scalingFactor}
+  },
+  // ${skeleton.properties.triggeringRatio.title} (${skeleton.properties.triggeringRatio.format} as ${skeleton.properties.triggeringRatio.type}) 
+  triggeringRatio: "${params.triggeringRatio}",
+  // ${skeleton.properties.auctionExtension.title} (${skeleton.properties.auctionExtension.format} as ${skeleton.properties.auctionExtension.type}) 
+  auctionExtension: "${params.auctionExtension}",
+}}`
+ }
+
+ return params
 }
 
 function generateMetadata(skeleton) {
@@ -186,21 +338,46 @@ function generateRiskModel(skeleton, riskModelType) {
   assert.equal(skeleton.properties.tau.format, 'double');
   assert.ok(skeleton.properties.params.properties.r);
   assert.equal(skeleton.properties.params.properties.r.format, 'double');
+  assert.ok(skeleton.properties.params.properties.mu);
+  assert.equal(skeleton.properties.params.properties.mu.format, 'double');
   assert.ok(skeleton.properties.params.properties.sigma);
   assert.equal(skeleton.properties.params.properties.sigma.format, 'double');
 
-  return {
+  const riskModel = {
     // This was what all the markets on fairground were set to
     tau: 0.0001140771161,
     // This is a random array based on what was live on Fairground at the time
     riskAversionParameter: sample([0.001, 0.01, 0.0001]),
     params: {
       // This was what all the markets on fairground were set to
+      mu: 0,
+      // Ditto
       r: 0.016,
       // This is a random array based on what was live on Fairground at the time
       sigma: sample([0.5, 0.3, 1.25, 0.8])
     }
   }
+
+ riskModel[inspect.custom]= () => {
+   return `{
+  // ${skeleton.properties.tau.title} (${skeleton.properties.tau.type}) 
+  tau: ${riskModel.tau},
+  // ${skeleton.properties.riskAversionParameter.title} (${skeleton.properties.riskAversionParameter.format} as ${skeleton.properties.riskAversionParameter.type}) 
+  riskAversionParameter: "${riskModel.riskAversionParameter}",
+  // ${skeleton.properties.params.title}
+  params: {
+    // ${skeleton.properties.params.properties.mu.title} (${skeleton.properties.params.properties.mu.format} as ${skeleton.properties.params.properties.mu.type}) 
+    mu: ${riskModel.params.mu},     
+    // ${skeleton.properties.params.properties.r.title} (${skeleton.properties.params.properties.r.format} as ${skeleton.properties.params.properties.r.type}) 
+    r: ${riskModel.params.r},     
+    // ${skeleton.properties.params.properties.sigma.title} (${skeleton.properties.params.properties.sigma.format} as ${skeleton.properties.params.properties.sigma.type}) 
+    sigma: ${riskModel.params.sigma},     
+  }
+}`
+ }
+
+ return riskModel
+
 }
 
 function newMarket(skeleton) {

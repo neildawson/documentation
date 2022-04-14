@@ -1,33 +1,33 @@
+const { inspect } = require('util');
 const assert = require('assert').strict;
-const { addDays } = require('date-fns')
+const { addDays } = require('date-fns');
 const omit = require('lodash/omit');
-const sample = require('lodash/sample');
 const SwaggerParser = require("@apidevtools/swagger-parser");
 const { newMarket } = require('./libGenerateProposals/newMarket')
+const { newFreeform } = require('./libGenerateProposals/newFreeform')
+const { newAsset } = require('./libGenerateProposals/newAsset')
+const { updateNetworkParameter } = require('./libGenerateProposals/updateNetworkParameter');
+
 // Config
 const url = 'https://raw.githubusercontent.com/vegaprotocol/protos/v0.50.1/swagger/vega/api/v1/corestate.swagger.json';
 
 // Input: Fields to remove from a specific place in the Swagger file
 const notProposalTypes = ['closingTimestamp', 'enactmentTimestamp', 'validationTimestamp', 'title', 'type']
-// Input: Ignore these types as they are not finished
-const excludeUnimplementedTypes = ['updateMarket'];
+// Input: Ignore these types as they are not finished. And a hack to make newMarket go to the bottom
+const excludeUnimplementedTypes = ['updateMarket', 'newMarket'];
 
-// Seed data: Some valid network parameters
-const networkParameters = ['market.fee.factors.infrastructureFee', 'governance.proposal.asset.requiredMajority', 'governance.proposal.freeform.minVoterBalance']
-// Seed data: Some asset names
-const assetNames = [
-    { name: 'Ethereum', symbol: 'ETH' },
-    { name: 'Bitcoin', symbol: 'Tether' },
-    { name: 'BNB', symbol: 'BNB' },
-    { name: 'XRP', symbol: 'XRP' },
-    { name: 'Solana', symbol: 'SOL' }
-];
 // Output: Used to put a nice title on the output
 const nameByType = {
   newFreeform: 'New Freeform Proposal',
   updateNetworkParameter: 'Update a network parameter',
   newAsset: 'New asset (ERC20)',
   newMarket: 'New market'
+}
+
+function annotator(proposal) {
+   const res = inspect(proposal, { depth: null})
+   
+   return res;
 }
 
 /**
@@ -50,87 +50,57 @@ function newProposal(changesAndDocs, skeleton, type) {
   // Freeform proposals don't get enacted, so they can't have this
   if (type !== 'newFreeform'){
     proposal.enactmentTimestamp = daysInTheFuture(20)
+ proposal[inspect.custom]= () => {
+   const splitClosingTitle = skeleton.properties.closingTimestamp.title.split('\n')
+   const splitEnactmentTitle = skeleton.properties.enactmentTimestamp.title.split('\n')
+   return `{
+    // ${splitClosingTitle[0]}
+    // ${splitClosingTitle[1]} (${skeleton.properties.closingTimestamp.format} as ${skeleton.properties.closingTimestamp.type}) 
+    closingTimestamp: ${proposal.closingTimestamp},
+    // ${splitEnactmentTitle[0]}
+    // ${splitEnactmentTitle[1]} (${skeleton.properties.enactmentTimestamp.format} as ${skeleton.properties.enactmentTimestamp.type}) 
+    enactmentTimestamp: ${proposal.enactmentTimestamp},
+    ${type}:  ${inspect(proposal[type], { depth: 20 })}
+ }`
+ }
+  } else {
+    proposal[inspect.custom]= () => {
+    const splitTitle = skeleton.properties.closingTimestamp.title.split('\n')
+    return `{
+    // ${splitTitle[0]}
+    // ${splitTitle[1]} (${skeleton.properties.closingTimestamp.format} as ${skeleton.properties.closingTimestamp.type}}) 
+    closingTimestamp: ${proposal.closingTimestamp},
+    ${type}:  ${inspect(proposal[type], { depth: 20 })}
+}`
+ }
+ 
   }
 
   proposal[type] = changesAndDocs.result
 
   console.log(`\r\n## ${nameByType[type]}`);
-  console.log(`\r\n### JSON`);
-  console.log('```json');
-  console.dir(proposal, { depth: 20 });
+  console.log(`<Tabs groupId="${type}">`)
+  console.log(`<TabItem value="annotated" label="Annotated example">`)
+  console.log()
+  console.log('```javascript');
+  console.log(annotator(proposal))
   console.log('```');
-  console.log(`\r\n### Command line ready`);
+  console.log(`</TabItem>`)
+  console.log(`<TabItem value="json" label="JSON example">`)
+  console.log()
+  console.log('```json');
+  console.log(JSON.stringify(proposal, null, 2))
+  console.log('```');
+  console.log(`</TabItem>`)
+  console.log(`<TabItem value="cmd" label="Command line example">`)
+  console.log()
+  console.log('```javascript');
   console.dir(JSON.stringify({"proposalSubmission": { reference: `test-${type}`, terms: proposal }}), { depth: 20 });
+  console.log('```');
+  console.log(`</TabItem>`)
+  console.log(`</Tabs>`)
   console.groupEnd();
 }
-
-function newFreeform(skeleton) {
-  const result = {};
-  const docs = skeleton;
-
-  assert.ok(skeleton.title);
-  assert.equal(skeleton.type, 'object');
-
-  assert.ok(skeleton.properties.changes);
-  result.changes = {};
-
-  assert.ok(skeleton.properties.changes.properties.url);
-  result.changes.url = 'https://dweb.link/ipfs/bafybeigwwctpv37xdcwacqxvekr6e4kaemqsrv34em6glkbiceo3fcy4si';
-
-  assert.ok(skeleton.properties.changes.properties.description);
-  result.changes.description = 'A proposal that demonstrates freeform proposals';
- 
-  assert.ok(skeleton.properties.changes.properties.hash);
-  result.changes.hash = 'bafybeigwwctpv37xdcwacqxvekr6e4kaemqsrv34em6glkbiceo3fcy4si';
-
-  return { result, docs };
-}
-
-function updateNetworkParameter(skeleton) {
-  const result = {};
-  const docs = skeleton 
-
-  assert.ok(skeleton.properties.changes);
-  result.changes = {};
-
-  assert.ok(skeleton.properties.changes.properties.key);
-  result.changes.key = sample(networkParameters)
-
-  assert.ok(skeleton.properties.changes.properties.value);
-  result.changes.value = Math.random().toString()
-
-  return { result, docs }
-}
-
-function newAsset(skeleton) {
-  const result = {};
-  const docs = skeleton;
-
-  const asset = sample(assetNames);
-
-  assert.ok(skeleton.properties.changes);
-  result.changes = {};
-  
-  assert.ok(skeleton.properties.changes.properties.name);
-  result.changes.name = asset.name;
-  
-  assert.ok(skeleton.properties.changes.properties.symbol);
-  result.changes.symbol = asset.symbol;
-
-  assert.ok(skeleton.properties.changes.properties.totalSupply);
-  result.changes.totalSupply = '19010568';
-
-  assert.ok(skeleton.properties.changes.properties.decimals);
-  result.changes.decimals = '5'
-
-  assert.ok(skeleton.properties.changes.properties.quantum);
-  result.changes.quantum = '1'
-
-  assert.ok(skeleton.properties.changes.properties.erc20);
-  result.changes.erc20 = { contractAddress: '0xcb84d72e61e383767c4dfeb2d8ff7f4fb89abc6e' };
-  return { result, docs }
-}
-
 
 const ProposalGenerator = new Map([
   ['newFreeform', newFreeform],
@@ -141,18 +111,24 @@ const ProposalGenerator = new Map([
 
 
 function parse(api) {
+  console.log(`import Tabs from '@theme/Tabs';`)
+  console.log(`import TabItem from '@theme/TabItem';`)
+  console.log()
+
   const proposalTypes = omit(api.definitions.vegaProposalTerms.properties, notProposalTypes )
 
   Object.keys(proposalTypes).forEach(type => {
       if ( excludeUnimplementedTypes.indexOf(type) === -1) {
         if (ProposalGenerator.has(type)) {
             const changes = ProposalGenerator.get(type)(proposalTypes[type])
-            // newProposal(changes, api.definitions.vegaProposalTerms, type) 
+            newProposal(changes, api.definitions.vegaProposalTerms, type) 
         } else {
-            console.log('No generator for ' + type);
+            assert.fail('Unknown proposal type: ' + type)
         }
-    }
+     }
   })
+  const changes = ProposalGenerator.get('newMarket')(proposalTypes['newMarket'])
+  newProposal(changes, api.definitions.vegaProposalTerms, 'newMarket') 
 }
 
 SwaggerParser.dereference(url).then(parse);

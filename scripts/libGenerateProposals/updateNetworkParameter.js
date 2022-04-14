@@ -30,7 +30,6 @@ function updateNetworkParameter(skeleton) {
     }`
  }
 
-
   return { result, docs }
 }
 

@@ -51,6 +51,7 @@ function newAsset(skeleton) {
           quantum: "${result.changes.quantum}",
           // ${skeleton.properties.changes.properties.erc20.title}
           erc20: {
+            // ${skeleton.properties.changes.properties.erc20.properties.contractAddress.title} (${skeleton.properties.changes.properties.erc20.properties.contractAddress.type})
             contractAddress: "${result.changes.erc20.contractAddress}",
           }
        }

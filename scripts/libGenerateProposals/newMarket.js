@@ -17,6 +17,7 @@ function generateOracleSpec(skeleton) {
   assert.equal(skeleton.properties.pubKeys.type, 'array', 'Oracle spec pubkeys used to be an array')
   assert.equal(skeleton.properties.pubKeys.items.type, 'string', 'Oracle spec pubkeys used to be an array of strings')
   assert.equal(skeleton.properties.filters.type, 'array', 'Oracle spec filters')
+
   return {
     pubKeys: [
         "0xab5c950b071684321d59360ccb924d9c5010b31abd6b4148206a57e73594abc9"
@@ -38,8 +39,10 @@ function generateOracleSpec(skeleton) {
     }
 }
 
-// TODO: Assert types
 function generateOracleSpecBinding(skeleton) {
+  assert.equal(skeleton.properties.settlementPriceProperty.type, 'string', 'Oracle spec binding: settlement price property changed format')
+  assert.equal(skeleton.properties.tradingTerminationProperty.type, 'string', 'Oracle spec binding: trading termination property changed format')
+
   return {
     settlementPriceProperty: "prices.AAPL.value",
     tradingTerminationProperty: "prices.AAPL.value"
@@ -47,7 +50,6 @@ function generateOracleSpecBinding(skeleton) {
 }
 
 
-// TODO pass in a deeper nested skeleton
 function generateInstrument(skeleton) {
   const randomInstrument = sample(instruments)
   // This is tEuro
@@ -55,31 +57,30 @@ function generateInstrument(skeleton) {
 
   const instrument = {};
   // The properties of an instrument
-  assert.ok(skeleton.properties.changes.properties.instrument);
-  assert.ok(skeleton.properties.changes.properties.instrument.properties.name);
+  assert.ok(skeleton.properties.name);
   instrument.name = randomInstrument.name;
-  assert.ok(skeleton.properties.changes.properties.instrument.properties.code);
+  assert.ok(skeleton.properties.code);
   instrument.code = randomInstrument.code;
   instrument.future = {};
 
-  assert.ok(skeleton.properties.changes.properties.instrument.properties.future.properties.settlementAsset);
+  assert.ok(skeleton.properties.future.properties.settlementAsset);
   instrument.future.settlementAsset = idForAnExistingVegaAsset;
 
-  assert.ok(skeleton.properties.changes.properties.instrument.properties.future.properties.quoteName);
+  assert.ok(skeleton.properties.future.properties.quoteName);
   instrument.future.quoteName = 'tEuro';
 
-  assert.ok(skeleton.properties.changes.properties.instrument.properties.future.properties.settlementPriceDecimals);
-  assert.equal(skeleton.properties.changes.properties.instrument.properties.future.properties.settlementPriceDecimals.type, 'integer');
+  assert.ok(skeleton.properties.future.properties.settlementPriceDecimals);
+  assert.equal(skeleton.properties.future.properties.settlementPriceDecimals.type, 'integer');
   instrument.future.settlementPriceDecimals = 5;
 
-  assert.ok(skeleton.properties.changes.properties.instrument.properties.future.properties.oracleSpecForSettlementPrice);
-  instrument.future.oracleSpecForSettlementPrice = generateOracleSpec(skeleton.properties.changes.properties.instrument.properties.future.properties.oracleSpecForSettlementPrice);
+  assert.ok(skeleton.properties.future.properties.oracleSpecForSettlementPrice);
+  instrument.future.oracleSpecForSettlementPrice = generateOracleSpec(skeleton.properties.future.properties.oracleSpecForSettlementPrice);
 
-  assert.ok(skeleton.properties.changes.properties.instrument.properties.future.properties.oracleSpecForTradingTermination);
-  instrument.future.oracleSpecForTradingTermination = generateOracleSpec(skeleton.properties.changes.properties.instrument.properties.future.properties.oracleSpecForSettlementPrice);
+  assert.ok(skeleton.properties.future.properties.oracleSpecForTradingTermination);
+  instrument.future.oracleSpecForTradingTermination = generateOracleSpec(skeleton.properties.future.properties.oracleSpecForSettlementPrice);
 
-  assert.ok(skeleton.properties.changes.properties.instrument.properties.future.properties.oracleSpecBinding);
-  instrument.future.oracleSpecBinding = generateOracleSpecBinding(skeleton);
+  assert.ok(skeleton.properties.future.properties.oracleSpecBinding);
+  instrument.future.oracleSpecBinding = generateOracleSpecBinding(skeleton.properties.future.properties.oracleSpecBinding);
 
   return instrument
 }
@@ -110,6 +111,20 @@ function generatePeggedOrders(skeleton, side) {
 }
 
 function generateNewMarketCommitment(skeleton) {
+  assert.equal(skeleton.properties.commitmentAmount.type, 'string', 'Market commitment amount changed format');
+  assert.equal(skeleton.properties.fee.type, 'string', 'Market commitment fee changed format');
+
+  assert.equal(skeleton.properties.sells.type, 'array', 'Market commitment buys used to be be an array');
+  assert.equal(skeleton.properties.sells.items.type, 'object', 'Market commitment buys used to be an objects');
+
+  assert.equal(skeleton.properties.buys.type, 'array', 'Market commitment sells used to be an array of objects');
+  assert.equal(skeleton.properties.buys.items.type, 'object', 'Market commitment sells used to be an array of objects');
+
+  assert.equal(skeleton.properties.buys.items.properties.reference.type, 'string', 'Market commitment used to be a string');
+  assert.equal(skeleton.properties.buys.items.properties.proportion.format, 'int64', 'Market proportion used to be an int64');
+  assert.equal(skeleton.properties.buys.items.properties.offset.type, 'string', 'Market offset used to be a string');
+  assert.deepEqual(skeleton.properties.buys.items.properties.reference.enum, ['PEGGED_REFERENCE_UNSPECIFIED', 'PEGGED_REFERENCE_MID', 'PEGGED_REFERENCE_BEST_BID', 'PEGGED_REFERENCE_BEST_ASK'], 'Market commitment types changed');
+
   return {
     commitmentAmount: random(100000,10000000).toString(),
     fee: random(0.01, 0.9).toPrecision(2).toString(),
@@ -124,6 +139,7 @@ function generatePriceMonitoringParameters(skeleton) {
   assert.equal(skeleton.properties.triggers.items.properties.horizon.format, 'int64')
   assert.equal(skeleton.properties.triggers.items.properties.probability.type, 'string')
   assert.equal(skeleton.properties.triggers.items.properties.auctionExtension.format, 'int64')
+
   return {
     triggers: [
       {
@@ -196,11 +212,12 @@ function newMarket(skeleton) {
 
   assert.ok(skeleton.properties.changes.properties.decimalPlaces);
   result.changes.decimalPlaces = 5;
+
   assert.ok(skeleton.properties.changes.properties.positionDecimalPlaces);
   result.changes.positionDecimalPlaces = 5;
  
   assert.ok(skeleton.properties.changes.properties.instrument);
-  result.changes.instrument = generateInstrument(skeleton)
+  result.changes.instrument = generateInstrument(skeleton.properties.changes.properties.instrument);
 
   assert.equal(skeleton.properties.changes.properties.metadata.type, 'array');
   result.changes.metadata = generateMetadata(skeleton.properties.changes.properties.metadata)

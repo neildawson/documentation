@@ -147,7 +147,7 @@ function parse(api) {
       if ( excludeUnimplementedTypes.indexOf(type) === -1) {
         if (ProposalGenerator.has(type)) {
             const changes = ProposalGenerator.get(type)(proposalTypes[type])
-            newProposal(changes, api.definitions.vegaProposalTerms, type) 
+            // newProposal(changes, api.definitions.vegaProposalTerms, type) 
         } else {
             console.log('No generator for ' + type);
         }

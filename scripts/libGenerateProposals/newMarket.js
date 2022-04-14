@@ -426,7 +426,7 @@ function newMarket(skeleton) {
         liquidityMonitoringParameters: ${inspect(result.changes.liquidityMonitoringParameters, { depth: 20 })},
         // ${skeleton.properties.changes.properties.logNormal.title}
         logNormal: ${inspect(result.changes.logNormal, { depth: 20 })},
-         }
+       }
     }`
   }
 

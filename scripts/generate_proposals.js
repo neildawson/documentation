@@ -94,8 +94,8 @@ function newProposal(changesAndDocs, skeleton, type) {
   console.log(`</TabItem>`)
   console.log(`<TabItem value="cmd" label="Command line example">`)
   console.log()
-  console.log('```javascript');
-  console.dir(JSON.stringify({"proposalSubmission": { reference: `test-${type}`, terms: proposal }}), { depth: 20 });
+  console.log('```bash');
+  console.log(`vegawallet command send --wallet your_username --pubkey your_key --tx-height 200000 '${JSON.stringify({"proposalSubmission": { reference: `test-${type}`, terms: proposal }})}'`);
   console.log('```');
   console.log(`</TabItem>`)
   console.log(`</Tabs>`)
